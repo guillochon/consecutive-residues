@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Consecutive Residues</title>
+<meta name="description" content="OEIS A000445: the latest a pair of consecutive n-th power residues can first appear. a(8) = 1508324, with a checked proof.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+/* Layout: header with three stats; figure 1 (the long run, overview grid + lens), figure 2 (the characters, a
+   table with one strip per k), figure 3 (ordinary primes, a log-log scatter), figure 4 (the proof tree, two bar
+   charts and its busiest pairs), then the method. Residues are --ink; the first consecutive pair is --hot.
+   Prime values in the strips use categorical slots --c0 (chi = 0), --c2 (chi = 2), --c3 (chi = 3). */
+:root {
+  --bg: #f1efe9; --surface: #faf9f5; --fg: #1f1d1a; --muted: #67625a; --line: #d9d4ca; --grid: #e7e3da;
+  --accent: #9a4a1c; --ink: #1f2b47; --hot: #d2402a; --beyond: #e4e0d6; --dot: #8b857b;
+  --c0: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --bar: #2a78d6;
+  --font-display: "Spectral", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12110f; --surface: #1a1916; --fg: #ebe7df; --muted: #a39d92; --line: #2f2c27; --grid: #26241f;
+    --accent: #f0a06a; --ink: #e8e2d4; --hot: #ff6a4d; --beyond: #24221e; --dot: #7d776d;
+    --c0: #3987e5; --c2: #d95926; --c3: #199e70; --bar: #3987e5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12110f; --surface: #1a1916; --fg: #ebe7df; --muted: #a39d92; --line: #2f2c27; --grid: #26241f;
+  --accent: #f0a06a; --ink: #e8e2d4; --hot: #ff6a4d; --beyond: #24221e; --dot: #7d776d;
+  --c0: #3987e5; --c2: #d95926; --c3: #199e70; --bar: #3987e5;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); margin: 0; }
+body { font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 56px; display: flex; flex-direction: column; gap: 44px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+.eyebrow a { color: inherit; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 38px; line-height: 1.05; margin: 0 0 12px; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 500; font-size: 26px; margin: 0 0 6px; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+.lede, .text p { margin: 0 0 10px; max-width: 72ch; color: var(--muted); }
+.lede b, .text b { color: var(--fg); font-weight: 500; }
+a { color: var(--accent); }
+.mono { font-family: var(--font-mono); }
+.stats { display: flex; flex-wrap: wrap; gap: 12px 36px; margin-top: 18px; }
+.stat .v { font-family: var(--font-display); font-size: 30px; font-weight: 600; line-height: 1.1; }
+.stat .l { color: var(--muted); font-size: 12px; }
+.fig { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; position: relative; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 12px 0; }
+.controls label { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+select, button { font: inherit; color: var(--fg); padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+button { cursor: pointer; }
+button:hover { border-color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stack { position: relative; }
+.stack canvas { display: block; width: 100%; height: auto; }
+#ov { cursor: crosshair; touch-action: none; }
+#ovx { position: absolute; inset: -14px; pointer-events: none; width: calc(100% + 28px); height: calc(100% + 28px); }
+#lens { cursor: default; }
+.readout { font-family: var(--font-mono); font-size: 12.5px; min-height: 4.6em; margin-top: 10px; color: var(--muted); white-space: pre-wrap; }
+.readout b { color: var(--fg); font-weight: 500; }
+.check { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.check b { color: var(--fg); font-weight: 500; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.key span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+.ring { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--hot); display: inline-block; }
+
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+td.num { font-family: var(--font-mono); text-align: right; white-space: nowrap; }
+td.pair { font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+td.src { color: var(--muted); font-size: 12px; }
+tr.new td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+tr.new td.num { color: var(--accent); font-weight: 500; }
+td.strip { width: 34%; min-width: 220px; }
+td.strip svg { display: block; width: 100%; height: 26px; }
+.tablewrap { overflow-x: auto; }
+
+.plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+.plot .ax { stroke: var(--line); }
+.plot .gl { stroke: var(--grid); }
+.plot text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
+.plot .lbl { fill: var(--fg); font-size: 12px; }
+#sc { display: block; width: 100%; height: auto; }
+.tip { position: absolute; pointer-events: none; background: var(--fg); color: var(--surface); font-size: 12px; padding: 5px 8px; border-radius: 6px;
+  white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); opacity: 0; transition: opacity .08s; z-index: 5; font-family: var(--font-mono); }
+.tip.on { opacity: 1; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; }
+.pairs { font-family: var(--font-mono); font-size: 12px; columns: 2; column-gap: 24px; margin: 0; padding: 0; list-style: none; }
+.pairs li { padding: 3px 0; break-inside: avoid; color: var(--muted); }
+.pairs li b { color: var(--fg); font-weight: 500; }
+.progress { font-size: 12px; color: var(--muted); }
+footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (max-width: 860px) {
+  .fig, .two { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 30px; }
+  .pairs { columns: 1; }
+}
+</style>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow"><a href="https://oeis.org/A000445">OEIS A000445</a> · <a href="https://www.erdosproblems.com/436">Erdős problem #436</a></p>
+  <h1>Consecutive Residues</h1>
+  <p class="lede">Pick a prime p and call n an <b>8th-power residue</b> if n ≡ x⁸ (mod p) for some x. Sooner or later two
+  consecutive numbers r and r + 1 are both residues. How long can that first pair be put off? Lehmer, Lehmer, Mills
+  and others answered this for squares through 7th powers between 1962 and 1964. For 8th powers the answer is
+  <b>a(8) = 1,508,324</b>. It is reached by infinitely many primes, and no prime does better.</p>
+  <div class="stats">
+    <div class="stat"><div class="v">1,508,324</div><div class="l">a(8): the longest possible wait</div></div>
+    <div class="stat"><div class="v" id="stLeaves">1,229,269</div><div class="l">pairs cited by the impossibility proof</div></div>
+    <div class="stat"><div class="v">9 → 1.5M</div><div class="l">a(2) … a(8): squares to 8th powers</div></div>
+  </div>
+</header>
+
+<section>
+  <div class="fig">
+    <div>
+      <p class="eyebrow">Figure 1</p>
+      <h2>One and a half million numbers, no two residues in a row</h2>
+      <div class="text">
+        <p>Every square below is one number, read left to right and top to bottom, starting at 1. Dark squares are
+        residues. In the extremal case for 8th powers about one number in eight is a residue, yet no two of them touch
+        until <b>1,508,324 = 2²·47·71·113</b> and <b>1,508,325 = 3·5²·7·13²·17</b>, ringed at the end.</p>
+        <p>Hover or drag over the grid to move the lens. In the lens each cell shows χ(n), the index of n mod k
+        (explained below); residues are the cells with χ(n) = 0. Your browser computes the whole grid from the
+        character's values on primes and checks where the first pair lands.</p>
+      </div>
+      <div class="controls">
+        <label>Power <select id="kSel"></select></label>
+        <button id="jump" type="button">Go to the first pair</button>
+        <button id="home" type="button">Go to the start</button>
+      </div>
+      <div class="key">
+        <span><i class="sw" style="background:var(--ink)"></i>residue, χ(n) = 0</span>
+        <span><i class="sw" style="background:var(--surface);border:1px solid var(--line)"></i>non-residue</span>
+        <span><i class="ring"></i>first consecutive pair</span>
+        <span><i class="sw" style="background:var(--beyond)"></i>past the pair</span>
+      </div>
+      <div class="check" id="check"></div>
+    </div>
+    <div class="panel">
+      <div class="stack"><canvas id="ov" aria-label="Grid of the numbers 1 to a(k)+1, residues dark"></canvas><canvas id="ovx" aria-hidden="true"></canvas></div>
+      <div class="stack" style="margin-top:12px"><canvas id="lens" aria-label="Magnified view of consecutive numbers with their index mod k"></canvas></div>
+      <div class="readout" id="readout"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Figure 2</p>
+  <h2>The whole game is choosing values on primes</h2>
+  <div class="text">
+    <p>For a prime p = km + 1, fix a primitive root g. Every n has an index: g<sup>ind n</sup> ≡ n (mod p). Then n is
+    a k-th power residue exactly when ind n ≡ 0 (mod k). Write <b>χ(n) = ind n mod k</b>. Indices add when numbers
+    multiply, so χ is fixed by its values on the primes. Any choice of values on finitely many primes is realized
+    by infinitely many p; for k = 8, χ(2) must be even, because 2 is a square mod every p = 8m + 1. So a(k) is a
+    puzzle: give each prime a value mod k so that the first r with χ(r) = χ(r + 1) = 0 comes as late as possible.</p>
+    <p>Each strip shows one maximal choice, the primes on a log scale up to the last one that needed a value. Most
+    primes get χ = 1 (left blank); the colored ticks are the exceptions. Primes beyond the strip are given a value
+    that makes all their multiples non-residues, which is possible because a large prime q only appears as j·q with
+    j &lt; q.</p>
+  </div>
+  <div class="key" style="margin-bottom:10px">
+    <span><i class="sw" style="background:var(--c0)"></i>χ(q) = 0, q is itself a residue</span>
+    <span><i class="sw" style="background:var(--c2)"></i>χ(q) = 2</span>
+    <span><i class="sw" style="background:var(--c3)"></i>χ(q) = 3</span>
+    <span>blank: χ(q) = 1</span>
+  </div>
+  <div class="panel tablewrap">
+    <table>
+      <thead><tr><th>k</th><th style="text-align:right">a(k)</th><th>first pair</th><th>values on primes</th><th>found by</th></tr></thead>
+      <tbody id="terms"></tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="fig">
+    <div>
+      <p class="eyebrow">Figure 3</p>
+      <h2>Ordinary primes never get close</h2>
+      <div class="text">
+        <p>The extremal values come from primes that agree with the special character on every prime up to about
+        1.5 million, so they are astronomically large. A typical prime finds its first pair quickly. Each dot is a
+        prime p ≡ 1 (mod k), plotted at the first r where r and r + 1 are both k-th power residues; your browser
+        computes these by modular exponentiation. Records are highlighted. The dashed line is a(k).</p>
+        <p>A handful of small primes have no consecutive pair at all, because they have so few residues. These
+        <b>exceptional primes</b> (29, 71, 113 and 491 for k = 7) are marked × at the top.</p>
+      </div>
+      <div class="controls">
+        <label>Power <select id="kSel2"></select></label>
+        <label>Primes up to <select id="pSel"><option value="100000">10⁵</option><option value="1000000" selected>10⁶</option><option value="4000000">4·10⁶</option></select></label>
+      </div>
+      <div class="progress" id="prog"></div>
+    </div>
+    <div class="panel plot">
+      <canvas id="sc" aria-label="Scatter of the first consecutive residue pair r against the prime p"></canvas>
+      <div class="key" id="scKey">
+        <span><i class="sw" style="background:var(--dot);border-radius:50%"></i>a prime p</span>
+        <span><i class="sw" style="background:var(--c2);border-radius:50%"></i>new record</span>
+        <span>× exceptional (no pair)</span>
+      </div>
+      <div class="tip" id="scTip"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Figure 4</p>
+  <h2>Why 1,508,325 is impossible</h2>
+  <div class="text">
+    <p>To show that no character avoids a pair below 1,508,325, a program tries values for the primes in order
+    (2, 3, 5, …). Each time a choice would create a residue pair, it cuts that branch. A branch also dies when a later
+    prime has no safe value left. The whole search tree has <b id="tNodes">78,438</b> nodes, and every dead end is
+    witnessed by one explicit pair (r, r + 1). An independent checker re-derives all <b id="tLeaves"></b> of them by
+    factoring.</p>
+  </div>
+  <div class="two">
+    <div class="panel plot">
+      <h3>Search nodes by the prime being decided</h3>
+      <div id="nodesChart"></div>
+      <div class="tip" id="nTip"></div>
+    </div>
+    <div class="panel plot">
+      <h3>Pairs used to close branches, by size of r</h3>
+      <div id="leafChart"></div>
+      <div class="tip" id="lTip"></div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:22px">
+    <h3>The pairs the proof leans on most</h3>
+    <p class="lede" style="font-size:13px">Pairs of very smooth neighbors close the most branches. The top one,
+    6560 = 2⁵·5·41 next to 6561 = 3⁸, is the same pair Brillhart and the Lehmers singled out in 1964.</p>
+    <ul class="pairs" id="topPairs"></ul>
+  </div>
+</section>
+
+<section class="text">
+  <p class="eyebrow">Method</p>
+  <h2>How a(8) was settled</h2>
+  <p>The search is the 1964 Brillhart–Lehmer–Lehmer "case vector" method, with forward checking added. When a
+  number's only undecided prime is its largest, values for that prime that would pair it with a known residue
+  neighbor are crossed off in advance. The search also treats characters that differ by a unit multiple mod 8 as
+  the same, and it stops at primes above √N, which can always be made harmless. Each yes/no run takes about 30
+  seconds. The same program reproduces a(2) through a(7).</p>
+  <p>Don Reble had shown 1,499,876 ≤ a(8) ≤ 1,508,324 in 2019. The new computation finds a character whose first
+  pair is exactly 1,508,324, so his upper bound is the value. It also writes a proof tree showing that nothing
+  reaches 1,508,325. Both were checked by separate Python code. The code, the certificate and the logs are in
+  <a href="https://github.com/guillochon/oeis-results/tree/main/A000445">oeis-results/A000445</a>.</p>
+</section>
+
+<footer>Made by James Guillochon with Claude. References: J. Brillhart, D. H. Lehmer, E. Lehmer, <i>Bounds for pairs of
+consecutive seventh and higher power residues</i>, Math. Comp. 18 (1964); A. Hildebrand, <i>On consecutive k-th power
+residues II</i> (1991), which proves a(k) is finite for every k.</footer>
+</div>
+
+<script>
+// generated by build.py
+const CASES={"2":{"a":9,"def":1,"exc":{},"cutoff":3},"3":{"a":77,"def":1,"exc":{"0":[5],"2":[7,19]},"cutoff":19},"4":{"a":1224,"def":1,"exc":{"0":[3]},"cutoff":151},"5":{"a":7888,"def":1,"exc":{"0":[3,5,29],"2":[13,19,23,31,41,43,211,277]},"cutoff":491},"6":{"a":202124,"def":1,"exc":{"0":[3,43,61],"2":[71,101,331,733,1423,4877,5413,6043]},"cutoff":6311},"7":{"a":1649375,"def":1,"exc":{"0":[3,41],"2":[79,139,197,233,269,277,463,467,709,797,1217,1709,2647,2903,15791]},"cutoff":25771},"8":{"a":1508324,"def":1,"exc":{"2":[2,13,29,31,53,101,113,137,223,241,257,271,313,317,337,359,499,521,593,641,673,709,883,1021,1061,1361,1381],"0":[3,97,149],"3":[233,269,443,479,487,727,937,1171,1201,1297,1301,1409,1451,1543,1663,2297,2381,2383,2389,2411,3677,3821,4073,4091,4177,4547,4801,5407,5867,6343,6733,6761,8543,10271,15227,16103,24049,24677,26029,32917,33331]},"cutoff":37699}};
+const BLL8={"a":1200744,"def":1,"cutoff":1000000000,"exc":{"0":[3],"2":[2,13,31,101,113,139,149,271,317,353,379,401,443,479,641,647,673,709,1061,1301,1409,1451,2383,2411,2687,3257,4241,4547,5407,5791,5867,6343,6761,8543,9343,10271,14869,24049]}};
+const TREE={"nodes":[[2,1],[3,2],[5,9],[7,40],[11,225],[13,1250],[17,4274],[19,11056],[23,22624],[29,26722],[31,10179],[37,1374],[41,206],[43,110],[47,54],[53,50],[59,47],[61,39],[67,25],[71,20],[73,19],[79,9],[83,19],[89,15],[97,10],[101,14],[103,17],[107,12],[109,12],[113,4]],"bins":[1,0,0,1,3,1,6,34,196,8235,5102,11348,14117,7433,20861,17874,25042,30675,37107,35377,42615,41938,50887,49576,53569,55228,44038,41764,45939,64862,41049,44109,47220,40917,43420,25528,31353,33468,37042,31715,29318,25776,21251,17906,15071,13439,14024,12834],"binLo":0.0,"binHi":6.178494929397904,"leaves":1229269,"distinct":5331,"maxR":1508324,"top":[[6560,16404],[20735,9126],[783,8275],[840,7862],[4900,7656],[1023,7034],[144,6961],[81,6778],[30624,6310],[1682,6270],[1295,5546],[83520,5460],[1024,5256],[575,5206],[528,5156],[450,5049]]};
+
+</script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = n => n.toLocaleString("en-US");
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+const sup = e => String(e).split("").map(d => SUP[+d]).join("");
+
+// ---- sieve of smallest prime factors up to the largest a(k) + 2 ----
+const MAXN = 1649377 + 2;
+const spf = new Int32Array(MAXN + 1);
+for (let i = 2; i <= MAXN; i++) if (!spf[i]) { for (let j = i; j <= MAXN; j += i) if (!spf[j]) spf[j] = i; }
+const factor = n => { const f = []; while (n > 1) { const p = spf[n]; let e = 0; while (n % p === 0) { n /= p; e++; } f.push([p, e]); } return f; };
+const fstr = n => n === 1 ? "1" : factor(n).map(([p, e]) => e > 1 ? p + sup(e) : "" + p).join("·");
+
+// ---- cases ----
+const KS = [2, 3, 4, 5, 6, 7, 8];
+const SRC = {2: "Lehmer & Lehmer 1962", 3: "Dunton 1965", 4: "Bierstedt & Mills 1963", 5: "Lehmer, Lehmer & Mills 1963",
+  6: "Lehmer, Lehmer & Mills 1963", 7: "Brillhart, Lehmer & Lehmer 1964", 8: "this computation, 2026"};
+const CASE = {};
+for (const k of KS) CASE[k] = Object.assign({k}, CASES[k]);
+CASE["8b"] = Object.assign({k: 8, bll: true}, BLL8);
+
+function buildChi(c) {
+  const k = c.k, N = c.a, lim = N + 1;
+  const val = new Map();
+  for (const [v, ps] of Object.entries(c.exc)) for (const p of ps) val.set(p, +v);
+  const chi = new Uint8Array(lim + 2);
+  const pv = new Int8Array(lim + 2);
+  for (let n = 2; n <= lim; n++) {
+    const p = spf[n];
+    if (p === n) {
+      let v;
+      if (val.has(p)) v = val.get(p);
+      else if (p <= c.cutoff) v = c.def;
+      else { // free rule: least value missing from chi(1..N/p), negated
+        const m = Math.floor(N / p); let seen = 0;
+        for (let j = 1; j <= m; j++) seen |= 1 << chi[j];
+        let miss = 0; while (seen >> miss & 1) miss++;
+        v = (k - miss) % k;
+      }
+      pv[p] = v; chi[n] = v;
+    } else chi[n] = (chi[n / p] + pv[p]) % k;
+  }
+  let first = -1;
+  for (let r = 1; r <= lim - 1; r++) if (chi[r] === 0 && chi[r + 1] === 0) { first = r; break; }
+  return {chi, pv, first, lim};
+}
+
+// ---- figure 1 ----
+const kSel = $("kSel"), kSel2 = $("kSel2");
+for (const k of KS) { kSel.add(new Option(k === 8 ? "8th powers (new)" : `${k}${["","","nd","rd","th","th","th","th"][k]} powers`, k)); }
+kSel.add(new Option("8th powers, 1964 vector", "8b"));
+for (const k of KS) kSel2.add(new Option(`k = ${k}`, k));
+kSel.value = "8"; kSel2.value = "8";
+
+const ov = $("ov"), ovx = $("ovx"), lens = $("lens");
+let cur = null, W = 0, center = 1;
+const LC = 30, LR = 10;
+
+function selectCase(key) {
+  const c = CASE[key]; const t0 = performance.now();
+  const r = buildChi(c);
+  cur = Object.assign({}, c, r);
+  W = Math.ceil(Math.sqrt(c.a + 2));
+  const ms = Math.round(performance.now() - t0);
+  $("check").innerHTML = r.first === c.a
+    ? `Computed in your browser (${ms} ms): first consecutive pair at <b>r = ${fmt(r.first)}</b>, ${c.bll ? "matching the 1964 lower bound of Brillhart, Lehmer and Lehmer" : `matching a(${c.k})`}.`
+    : `Computed first pair at r = ${fmt(r.first)}; expected ${fmt(c.a)}.`;
+  drawOverview(); center = c.a; drawLens(); hover(c.a);
+}
+
+function drawOverview() {
+  const n = W * W, c = cur;
+  ov.width = W; ov.height = W;
+  ov.style.imageRendering = W < 300 ? "pixelated" : "auto";
+  const ctx = ov.getContext("2d");
+  const img = ctx.createImageData(W, W), d = img.data;
+  const rgb = s => { const t = document.createElement("canvas").getContext("2d"); t.fillStyle = s; t.fillRect(0,0,1,1); return t.getImageData(0,0,1,1).data; };
+  const I = rgb(css("--ink")), S = rgb(css("--surface")), B = rgb(css("--beyond")), H = rgb(css("--hot"));
+  for (let i = 0; i < n; i++) {
+    const v = i + 1;
+    const col = v > c.lim ? B : (v === c.first || v === c.first + 1) ? H : c.chi[v] === 0 ? I : S;
+    d[4*i] = col[0]; d[4*i+1] = col[1]; d[4*i+2] = col[2]; d[4*i+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  drawOverlay();
+}
+
+function drawOverlay() {
+  const r = ov.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const PAD = 14;
+  ovx.width = Math.round((r.width + 2 * PAD) * dpr); ovx.height = Math.round((r.height + 2 * PAD) * dpr);
+  const ctx = ovx.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, PAD * dpr, PAD * dpr);
+  const s = r.width / W;
+  const pos = v => [((v - 1) % W + .5) * s, (Math.floor((v - 1) / W) + .5) * s];
+  // lens window
+  const start = lensStart();
+  ctx.strokeStyle = css("--accent"); ctx.lineWidth = 1.5;
+  const [x0, y0] = pos(start), [x1, y1] = pos(Math.min(start + LC * LR - 1, W * W));
+  if (y1 - y0 < 2 * s) { ctx.strokeRect(Math.min(x0, x1) - s, y0 - s, Math.abs(x1 - x0) + 2 * s, 2 * s); }
+  else { ctx.strokeRect(1, y0 - s / 2 - 1, r.width - 2, y1 - y0 + s + 2); }
+  // ring at the first pair
+  const [px, py] = pos(cur.first);
+  ctx.strokeStyle = css("--hot"); ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(px + s / 2, py, Math.max(9, 3 * s), 0, 2 * Math.PI); ctx.stroke();
+}
+
+function lensStart() {
+  let s = Math.floor((center - 1) / LC) * LC + 1 - Math.floor(LR / 2) * LC;
+  const maxStart = Math.floor((cur.lim + LC - 1) / LC) * LC + 1 - (LR - 1) * LC;
+  s = Math.min(s, Math.max(1, maxStart)); return Math.max(1, s);
+}
+
+let lensGeo = null;
+function drawLens() {
+  const r = lens.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const wcss = lens.parentElement.clientWidth, labW = 64, cell = (wcss - labW) / LC, hcss = cell * LR;
+  lens.style.height = hcss + "px";
+  lens.width = Math.round(wcss * dpr); lens.height = Math.round(hcss * dpr);
+  const ctx = lens.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const start = lensStart(), c = cur;
+  lensGeo = {start, cell, labW};
+  const I = css("--ink"), S = css("--surface"), B = css("--beyond"), H = css("--hot"), M = css("--muted"), F = css("--fg"), L = css("--grid");
+  ctx.clearRect(0, 0, wcss, hcss);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const fs = Math.max(8, Math.min(13, cell * .55));
+  for (let row = 0; row < LR; row++) {
+    const y = row * cell;
+    ctx.fillStyle = M; ctx.font = `11px ${css("--font-mono")}`; ctx.textAlign = "right";
+    ctx.fillText(fmt(start + row * LC), labW - 8, y + cell / 2); ctx.textAlign = "center";
+    for (let col = 0; col < LC; col++) {
+      const v = start + row * LC + col, x = labW + col * cell;
+      const beyond = v > c.lim;
+      ctx.fillStyle = beyond ? B : c.chi[v] === 0 ? I : S;
+      ctx.fillRect(x + .5, y + .5, cell - 1, cell - 1);
+      if (!beyond) {
+        ctx.fillStyle = c.chi[v] === 0 ? S : M; ctx.font = `${fs}px ${css("--font-mono")}`;
+        ctx.fillText(c.chi[v], x + cell / 2, y + cell / 2 + .5);
+      }
+      if (v === c.first) { ctx.strokeStyle = H; ctx.lineWidth = 2.5; ctx.strokeRect(x + 1.5, y + 1.5, (col === LC - 1 ? 1 : 2) * cell - 3, cell - 3); }
+      if (v === c.first + 1 && col === 0) { ctx.strokeStyle = H; ctx.lineWidth = 2.5; ctx.strokeRect(x + 1.5, y + 1.5, cell - 3, cell - 3); }
+    }
+  }
+  ctx.strokeStyle = L; ctx.lineWidth = 1; ctx.strokeRect(labW + .5, .5, LC * cell - 1, LR * cell - 1);
+  drawOverlay();
+}
+
+function hover(v) {
+  const c = cur; if (!c || v < 1) return;
+  if (v > c.lim) { $("readout").innerHTML = `<b>n = ${fmt(v)}</b>\nbeyond a(${c.k}) + 1, not shown`; return; }
+  const f = v === 1 ? [] : factor(v);
+  const terms = f.map(([p, e]) => (e > 1 ? e + "·" : "") + `χ(${p})`).join(" + ") || "0";
+  const nums = f.map(([p, e]) => e * c.pv[p]).join(" + ") || "0";
+  const res = c.chi[v] === 0;
+  const pairNote = (v === c.first || v === c.first + 1) ? `   ← the first consecutive pair` : "";
+  $("readout").innerHTML = `<b>n = ${fmt(v)} = ${fstr(v)}</b>${pairNote}\nχ(n) = ${terms}\n     = ${nums} ≡ <b>${c.chi[v]}</b> (mod ${c.k})  ${res ? "→ <b>residue</b>" : "→ non-residue"}`;
+}
+
+function ovPoint(e) {
+  const r = ov.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / r.width * W), y = Math.floor((e.clientY - r.top) / r.height * W);
+  if (x < 0 || y < 0 || x >= W || y >= W) return null;
+  return y * W + x + 1;
+}
+ov.addEventListener("pointermove", e => { const v = ovPoint(e); if (v) { center = Math.min(v, cur.lim); drawLens(); hover(v); } });
+ov.addEventListener("pointerdown", e => { ov.setPointerCapture(e.pointerId); const v = ovPoint(e); if (v) { center = Math.min(v, cur.lim); drawLens(); hover(v); } });
+lens.addEventListener("pointermove", e => {
+  if (!lensGeo) return; const r = lens.getBoundingClientRect();
+  const col = Math.floor((e.clientX - r.left - lensGeo.labW) / lensGeo.cell), row = Math.floor((e.clientY - r.top) / lensGeo.cell);
+  if (col >= 0 && col < LC && row >= 0 && row < LR) hover(lensGeo.start + row * LC + col);
+});
+kSel.addEventListener("change", () => selectCase(kSel.value));
+$("jump").addEventListener("click", () => { center = cur.first; drawLens(); hover(cur.first); });
+$("home").addEventListener("click", () => { center = 1; drawLens(); hover(1); });
+
+// ---- figure 2: table with strips ----
+function strip(c) {
+  const axisTo = c.bll ? CASE[8].cutoff : c.cutoff;
+  const lo = Math.log(2), hi = Math.log(Math.max(axisTo, 3) * 1.15), w = 400, h = 26;
+  const x = p => 4 + (Math.log(p) - lo) / (hi - lo) * (w - 8);
+  let s = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="values of chi on primes up to ${c.cutoff}">`;
+  s += `<line x1="4" x2="${w - 4}" y1="${h - 4}" y2="${h - 4}" stroke="var(--line)"/>`;
+  if (!c.bll) s += `<line x1="${x(c.cutoff)}" x2="${x(c.cutoff)}" y1="${h - 9}" y2="${h}" stroke="var(--muted)"/>`;
+  const col = {0: "var(--c0)", 2: "var(--c2)", 3: "var(--c3)"};
+  for (const [v, ps] of Object.entries(c.exc)) for (const p of ps)
+    s += `<line x1="${x(p)}" x2="${x(p)}" y1="3" y2="${h - 6}" stroke="${col[v] || "var(--fg)"}" stroke-width="2" stroke-linecap="round"><title>χ(${p}) = ${v}</title></line>`;
+  return s + "</svg>";
+}
+const rows = KS.map(k => CASE[k]).concat([CASE["8b"]]);
+$("terms").innerHTML = rows.map(c => {
+  const nexc = Object.values(c.exc).reduce((s, a) => s + a.length, 0);
+  const cut = c.bll ? "primes up to 1.2M (axis as in the row above)" : `primes ≤ ${fmt(c.cutoff)}`;
+  return `<tr class="${c.k === 8 && !c.bll ? "new" : ""}"><td>${c.k}${c.bll ? "<br><span style='color:var(--muted);font-size:11px'>1964 bound</span>" : ""}</td>
+  <td class="num">${c.bll ? "≥ " : ""}${fmt(c.a)}</td>
+  <td class="pair">${fstr(c.a)}<br>${fstr(c.a + 1)}</td>
+  <td class="strip">${strip(c)}<span style="font-size:11px;color:var(--muted)">${nexc} exception${nexc === 1 ? "" : "s"} among ${cut}</span></td>
+  <td class="src">${c.bll ? "Brillhart, Lehmer & Lehmer 1964 (lower bound)" : SRC[c.k]}</td></tr>`;
+}).join("") + `<tr><td>9</td><td class="num">&gt; 10,000,000</td><td class="pair">open</td><td class="src" colspan="2">lower bound: Brillhart, Lehmer & Lehmer 1964</td></tr>`;
+
+// ---- figure 3: scatter ----
+const sc = $("sc"), scTip = $("scTip");
+let scData = null, scJob = 0;
+function primesUpTo(P) { const s = new Uint8Array(P + 1), out = []; for (let i = 2; i <= P; i++) if (!s[i]) { out.push(i); for (let j = i * i; j <= P; j += i) s[j] = 1; } return out; }
+const PR = primesUpTo(4000000);
+function powmod(b, e, m) { let r = 1; b %= m; while (e > 0) { if (e & 1) r = (r * b) % m; b = (b * b) % m; e = Math.floor(e / 2); } return r; }
+function firstPair(p, k) {
+  const e = (p - 1) / k; let prev = true;
+  for (let s = 2; s < p; s++) { const cur = powmod(s, e, p) === 1; if (prev && cur) return s - 1; prev = cur; }
+  return -1;
+}
+function runScatter() {
+  const k = +kSel2.value, P = +$("pSel").value, job = ++scJob;
+  const ps = PR.filter(p => p <= P && p % k === 1 && p > k);
+  scData = {k, P, pts: [], exc: [], rec: [], best: 0, a: CASE[k].a};
+  let i = 0;
+  const step = () => {
+    if (job !== scJob) return;
+    const t = performance.now();
+    while (i < ps.length && performance.now() - t < 24) {
+      const p = ps[i++], r = firstPair(p, k);
+      if (r < 0) scData.exc.push(p);
+      else { scData.pts.push([p, r]); if (r > scData.best) { scData.best = r; scData.rec.push([p, r]); } }
+    }
+    $("prog").textContent = i < ps.length ? `computing… ${fmt(i)} of ${fmt(ps.length)} primes`
+      : `${fmt(ps.length)} primes p ≡ 1 (mod ${k}) up to ${fmt(P)}. Largest first pair: r = ${fmt(scData.best)}, against a(${k}) = ${fmt(scData.a)}.`;
+    drawScatter();
+    if (i < ps.length) requestAnimationFrame(step);
+  };
+  step();
+}
+let scGeo = null;
+function drawScatter() {
+  const d = scData; if (!d) return;
+  const wcss = sc.parentElement.clientWidth - 28, hcss = Math.round(wcss * .72), dpr = window.devicePixelRatio || 1;
+  sc.style.height = hcss + "px"; sc.width = Math.round(wcss * dpr); sc.height = Math.round(hcss * dpr);
+  const ctx = sc.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const m = {l: 54, r: 12, t: 18, b: 34}, pw = wcss - m.l - m.r, ph = hcss - m.t - m.b;
+  const xlo = Math.log10(Math.max(d.k + 1, 2)), xhi = Math.log10(d.P), ylo = 0, yhi = Math.log10(d.a * 3);
+  const X = p => m.l + (Math.log10(p) - xlo) / (xhi - xlo) * pw, Y = r => m.t + ph - (Math.log10(r) - ylo) / (yhi - ylo) * ph;
+  scGeo = {X, Y};
+  ctx.font = `11px ${css("--font-body")}`; ctx.fillStyle = css("--muted"); ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+  ctx.textAlign = "right"; ctx.textBaseline = "middle";
+  for (let e = 0; e <= Math.floor(yhi); e++) { const y = Y(10 ** e); ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke(); ctx.fillText(e === 0 ? "1" : "10" + sup(e), m.l - 6, y); }
+  ctx.textAlign = "center"; ctx.textBaseline = "top";
+  for (let e = Math.ceil(xlo); e <= Math.floor(xhi); e++) { const x = X(10 ** e); ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke(); ctx.fillText("10" + sup(e), x, m.t + ph + 6); }
+  ctx.fillText("prime p", m.l + pw / 2, m.t + ph + 20);
+  ctx.save(); ctx.translate(14, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("first pair r", 0, -6); ctx.restore();
+  // a(k) line
+  const ya = Y(d.a);
+  ctx.strokeStyle = css("--fg"); ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(m.l, ya); ctx.lineTo(m.l + pw, ya); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = css("--fg"); ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.font = `12px ${css("--font-body")}`;
+  ctx.fillText(`a(${d.k}) = ${fmt(d.a)}`, m.l + pw - 6, ya + 5);
+  // dots
+  ctx.fillStyle = css("--dot"); ctx.globalAlpha = d.pts.length > 20000 ? .35 : .6;
+  for (const [p, r] of d.pts) ctx.fillRect(X(p) - 1, Y(r) - 1, 2, 2);
+  ctx.globalAlpha = 1;
+  // records
+  ctx.strokeStyle = css("--c2"); ctx.lineWidth = 2; ctx.beginPath();
+  d.rec.forEach(([p, r], i) => { const x = X(p), y = Y(r); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  if (d.rec.length) ctx.lineTo(m.l + pw, Y(d.best));
+  ctx.stroke();
+  for (const [p, r] of d.rec) { ctx.fillStyle = css("--surface"); ctx.beginPath(); ctx.arc(X(p), Y(r), 5, 0, 7); ctx.fill(); ctx.fillStyle = css("--c2"); ctx.beginPath(); ctx.arc(X(p), Y(r), 4, 0, 7); ctx.fill(); }
+  // exceptional
+  ctx.strokeStyle = css("--fg"); ctx.lineWidth = 1.5;
+  for (const p of d.exc) { const x = X(p), y = m.t + 6; ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke(); }
+  ctx.strokeStyle = css("--line"); ctx.strokeRect(m.l + .5, m.t + .5, pw, ph);
+}
+sc.addEventListener("pointermove", e => {
+  if (!scData || !scGeo) return;
+  const r = sc.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 100;
+  for (const [p, rr] of scData.rec) { const dx = scGeo.X(p) - mx, dy = scGeo.Y(rr) - my, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = `record: p = ${fmt(p)}, first pair r = ${fmt(rr)}`; } }
+  for (const p of scData.exc) { const dx = scGeo.X(p) - mx, dy = 24 - my, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = `p = ${fmt(p)}: exceptional, no pair`; } }
+  if (best) { scTip.textContent = best; scTip.style.left = (mx + 14) + "px"; scTip.style.top = (my + 14) + "px"; scTip.classList.add("on"); }
+  else scTip.classList.remove("on");
+});
+sc.addEventListener("pointerleave", () => scTip.classList.remove("on"));
+kSel2.addEventListener("change", runScatter); $("pSel").addEventListener("change", runScatter);
+
+// ---- figure 4: proof tree ----
+$("tLeaves").textContent = fmt(TREE.leaves);
+$("tNodes").textContent = fmt(TREE.nodes.reduce((s, [, n]) => s + n, 0));
+function bars(el, tipEl, items, xlab, tipFmt, ticks) {
+  const w = 560, h = 240, m = {l: 50, r: 8, t: 10, b: 38}, pw = w - m.l - m.r, ph = h - m.t - m.b;
+  const ymax = Math.max(...items.map(d => d.v)), nice = 10 ** Math.floor(Math.log10(ymax)), top = Math.ceil(ymax / nice) * nice;
+  const bw = pw / items.length;
+  let s = `<svg viewBox="0 0 ${w} ${h}" role="img">`;
+  for (let i = 0; i <= 4; i++) { const v = top * i / 4, y = m.t + ph - v / top * ph;
+    s += `<line class="gl" x1="${m.l}" x2="${m.l + pw}" y1="${y}" y2="${y}"/><text x="${m.l - 6}" y="${y + 4}" text-anchor="end">${fmt(Math.round(v))}</text>`; }
+  items.forEach((d, i) => {
+    const x = m.l + i * bw, bh = d.v / top * ph, y = m.t + ph - bh, iw = Math.max(1, bw - 2);
+    const rr = Math.min(4, iw / 2, bh);
+    if (bh > 0) s += `<path fill="var(--bar)" d="M${x + 1},${m.t + ph} V${y + rr} q0,-${rr} ${rr},-${rr} H${x + 1 + iw - rr} q${rr},0 ${rr},${rr} V${m.t + ph} Z"/>`;
+    s += `<rect class="hit" data-i="${i}" x="${x}" y="${m.t}" width="${bw}" height="${ph}" fill="transparent"/>`;
+  });
+  s += `<line class="ax" x1="${m.l}" x2="${m.l + pw}" y1="${m.t + ph}" y2="${m.t + ph}"/>`;
+  for (const [i, lab] of ticks) s += `<text x="${m.l + (i + .5) * bw}" y="${m.t + ph + 15}" text-anchor="middle">${lab}</text>`;
+  s += `<text x="${m.l + pw / 2}" y="${h - 4}" text-anchor="middle">${xlab}</text></svg>`;
+  el.innerHTML = s;
+  el.querySelectorAll(".hit").forEach(r => {
+    r.addEventListener("pointerenter", () => { const d = items[+r.dataset.i], box = el.parentElement.getBoundingClientRect(), rb = r.getBoundingClientRect();
+      tipEl.textContent = tipFmt(d); tipEl.style.left = (rb.left + rb.width / 2 - box.left) + "px"; tipEl.style.top = (rb.top - box.top + 30) + "px"; tipEl.classList.add("on");
+      r.setAttribute("fill", "color-mix(in srgb, var(--fg) 6%, transparent)"); });
+    r.addEventListener("pointerleave", () => { tipEl.classList.remove("on"); r.setAttribute("fill", "transparent"); });
+  });
+}
+const nItems = TREE.nodes.map(([p, n]) => ({p, v: n}));
+bars($("nodesChart"), $("nTip"), nItems, "prime being decided", d => `prime ${d.p}: ${fmt(d.v)} nodes`,
+  nItems.map((d, i) => [i, d.p]).filter(([i, p]) => [2, 5, 11, 17, 23, 29, 37, 47, 61, 79, 101, 113].includes(p)));
+const nb = TREE.bins.length, bl = TREE.binLo, bh = TREE.binHi;
+const lItems = TREE.bins.map((v, i) => ({v, a: 10 ** (bl + (bh - bl) * i / nb), b: 10 ** (bl + (bh - bl) * (i + 1) / nb)}));
+const lticks = []; for (let e = 0; e <= 6; e++) { const i = Math.round((e - bl) / (bh - bl) * nb - .5); if (i >= 0 && i < nb) lticks.push([i, e === 0 ? "1" : "10" + sup(e)]); }
+bars($("leafChart"), $("lTip"), lItems, "r, log scale", d => `r in ${fmt(Math.ceil(d.a))}–${fmt(Math.floor(d.b))}: ${fmt(d.v)} uses`, lticks);
+$("topPairs").innerHTML = TREE.top.slice(0, 12).map(([r, n]) =>
+  `<li><b>${fmt(r)}</b> = ${fstr(r)}, ${fmt(r + 1)} = ${fstr(r + 1)} <span>· closes ${fmt(n)} branches</span></li>`).join("");
+
+// ---- start ----
+selectCase("8");
+runScatter();
+let rt = 0;
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawLens(); drawScatter(); }, 100); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawOverview(); drawLens(); drawScatter(); });
+new MutationObserver(() => { drawOverview(); drawLens(); drawScatter(); }).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+})();
+</script>
+</html>
