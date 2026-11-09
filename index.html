@@ -246,6 +246,19 @@ footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--lin
 </section>
 
 <section class="text">
+  <p class="eyebrow">Next: 9th powers</p>
+  <h2>a(9) is at least 178,708,831</h2>
+  <p>For 9th powers, Brillhart and the Lehmers showed in 1964 that the wait can exceed ten million. The search that settled
+  a(8) stalls here, but the best characters have a simple shape. Almost every prime gets the value 1, so χ(n) is roughly
+  the number of prime factors of n, mod 9. Only a handful of primes are exceptions. A beam search over those exceptions
+  found a character with just 20 of them whose first pair of consecutive 9th-power residues is</p>
+  <p style="text-align:center"><b>178,708,831 = 7⁸·31</b> and <b>178,708,832 = 2⁵·19·41·67·107</b>,</p>
+  <p>so a(9) ≥ 178,708,831, about 18 times the 1964 bound. A separate program factored every number up to 1.8·10⁸ and
+  confirmed it. This is only a lower bound. The same beam search finds a(6) exactly but stops well short of a(7), so the
+  true a(9) may be much larger. Proving an exact value would take a refutation at a size far beyond the a(8) proof.</p>
+</section>
+
+<section class="text">
   <p class="eyebrow">Method</p>
   <h2>How a(8) was settled</h2>
   <p>The search is the 1964 Brillhart–Lehmer–Lehmer "case vector" method, with forward checking added. When a
