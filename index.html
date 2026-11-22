@@ -247,18 +247,22 @@ footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--lin
 
 <section class="text">
   <p class="eyebrow">Next: 9th powers</p>
-  <h2>a(9) is at least 300,000,031</h2>
+  <h2>a(9) is at least 550,000,096</h2>
   <p>For 9th powers, Brillhart and the Lehmers showed in 1964 that the wait can exceed ten million. The best characters
   have a simple shape. Almost every prime gets the value 1, so χ(n) is roughly the number of prime factors of n, mod 9,
   and only a handful of primes are exceptions. A beam search over those exceptions first found a character whose first
   pair of consecutive 9th-power residues is 178,708,831 = 7⁸·31 and 178,708,832.</p>
   <p>The same search that settled a(8) then did better, after a memory cut that lets it look at 300 million numbers at
-  once. In six hours it found a character with no pair of consecutive 9th-power residues anywhere below 3·10⁸. It sets
-  the value of every prime up to 1,171,867, and all but 79 of them get the value 1. Its first pair is</p>
-  <p style="text-align:center"><b>300,000,031</b> (a prime) and <b>300,000,032 = 2⁵·9,375,001</b>,</p>
-  <p>so a(9) ≥ 300,000,031, about 30 times the 1964 bound. A separate program recomputed the character on every number
-  up to 3.05·10⁸ and confirmed it. This is still only a lower bound, and it stops just where the search stopped looking,
-  so the true a(9) is probably larger. Proving an exact value would take a refutation far beyond the a(8) proof.</p>
+  once. In six hours it found a character with no pair of consecutive 9th-power residues anywhere below 3·10⁸. A faster
+  version then climbed in steps, starting each search from the previous character: 350, 400, 450, 500 and 550
+  million. Most steps took minutes. The last character sets the value of every prime up to 2,148,437. Of the 78,498
+  primes below a million, only 186 get a value other than 1. Above about 1.2 million, where each prime has only a few hundred
+  multiples in range, the search often picks other values. Its first pair is</p>
+  <p style="text-align:center"><b>550,000,096 = 2⁵·17,187,503</b> and <b>550,000,097</b> (a prime),</p>
+  <p>so a(9) ≥ 550,000,096, about 55 times the 1964 bound. A separate program recomputed every character on every number
+  up to 2·10⁷ past its limit and confirmed it. The next step, 6·10⁸, ran for eight hours without finding a character,
+  but that is not a proof that none exists. So this is still only a lower bound, and the true a(9) is probably larger.
+  Proving an exact value would take a refutation far beyond the a(8) proof.</p>
 </section>
 
 <section class="text">
